@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Prediction Market Landscape 2025 (Finalized)</title>
+    <style>
+        :root {
+            --bg-color: #02050e;
+            --text-color: #e0f2ff;
+            --panel-bg: rgba(10, 20, 40, 0.85);
+            --accent-blue: #0088ff;
+            --accent-green: #00ffaa;
+            --accent-purple: #aa00ff;
+            --accent-red: #ff3300;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            height: 100%;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            z-index: 1;
+            background: radial-gradient(circle at center, #050a14 0%, #000000 100%);
+        }
+
+        /* UI Overlay Styles */
+        #ui-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            background: var(--panel-bg);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid rgba(100, 150, 255, 0.2);
+            box-shadow: 0 0 30px rgba(0, 100, 255, 0.2);
+            width: 280px;
+        }
+
+        h1 {
+            margin: 0 0 15px 0;
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 10px;
+        }
+
+        .year-selector {
+            font-weight: bold;
+            color: var(--accent-blue);
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        .toggle-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .toggle-item {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+        .toggle-item:hover { color: #fff; }
+
+        .toggle-item input {
+            margin-right: 10px;
+            accent-color: var(--accent-blue);
+        }
+
+        .legend-marker {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+            margin-right: 10px;
+            box-shadow: 0 0 8px currentColor;
+        }
+
+        /* Tooltip Styles */
+        #tooltip {
+            position: absolute;
+            z-index: 20;
+            background: rgba(10, 15, 30, 0.95);
+            border: 1px solid var(--accent-blue);
+            padding: 12px 15px;
+            border-radius: 4px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s, transform 0.2s;
+            transform: translate(-50%, -110%);
+            box-shadow: 0 0 20px rgba(0, 136, 255, 0.4);
+            min-width: 150px;
+            text-align: center;
+        }
+
+        #tooltip h3 {
+            margin: 0 0 5px 0;
+            font-size: 1.1rem;
+            color: #fff;
+            letter-spacing: 1px;
+        }
+
+        #tooltip p {
+            margin: 4px 0;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+        
+        #loading {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 20;
+            font-size: 1.5rem;
+            color: var(--accent-blue);
+            text-shadow: 0 0 10px var(--accent-blue);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading">Loading Geo Data...</div>
+    <div id="canvas-container"></div>
+
+    <div id="ui-overlay">
+        <h1>Global Markets 2025</h1>
+        <span class="year-selector">REGULATORY STATUS MAP</span>
+
+        <div class="toggle-group">
+             <label class="toggle-item">
+                <input type="checkbox" checked data-type="regulated">
+                <span class="legend-marker" style="color: var(--accent-blue); background: var(--accent-blue);"></span>
+                Regulated Hubs
+            </label>
+            <label class="toggle-item">
+                <input type="checkbox" checked data-type="crypto">
+                <span class="legend-marker" style="color: var(--accent-green); background: var(--accent-green);"></span>
+                Crypto-Friendly Access
+            </label>
+            <label class="toggle-item">
+                <input type="checkbox" checked data-type="decentralized">
+                <span class="legend-marker" style="color: var(--accent-purple); background: var(--accent-purple);"></span>
+                Decentralized / Grey
+            </label>
+             <label class="toggle-item">
+                <input type="checkbox" checked data-type="restricted">
+                 <span class="legend-marker" style="color: var(--accent-red); background: var(--accent-red);"></span>
+                Restricted / Banned
+            </label>
+        </div>
+        <p style="font-size: 0.8rem; opacity: 0.6;">*Holographic borders indicate regulatory stance. Data is illustrative for 2025 scenario.</p>
+    </div>
+
+    <div id="tooltip">
+        <h3 id="tt-country">Country</h3>
+        <p id="tt-status" style="color: var(--accent-blue)">Status</p>
+    </div>
+
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+        // --- Configuration ---
+        const GLOBE_RADIUS = 100;
+        const COLORS = {
+            regulated: 0x0088ff,
+            crypto: 0x00ffaa,
+            decentralized: 0xaa00ff,
+            restricted: 0xff3300,
+            default: 0x333333 // Dark grey for unmapped countries
+        };
+
+        // --- Mapped Data (ISO A3 Codes to Status) ---
+        // UPDATED: Added South Africa and other African nations
+        const COUNTRY_STATUS = {
+            // North America & Europe (Regulated Hubs)
+            'USA': 'regulated', 'GBR': 'regulated', 'IRL': 'regulated', 'AUS': 'regulated', 'DEU': 'regulated', 'FRA': 'regulated',
+            
+            // Crypto-Friendly / Emerging Access Hubs
+            'ZAF': 'crypto', // South Africa - Key Hub
+            'KEN': 'crypto', // Kenya
+            'GHA': 'crypto', // Ghana
+            'ARE': 'crypto', 'SLV': 'crypto', 'SGP': 'crypto', 'ARG': 'crypto', 'MLT': 'crypto', 'CHE': 'crypto',
+            
+            // Decentralized / Grey Markets
+            'NGA': 'decentralized', // Nigeria remains a key decentralized hub
+            'JPN': 'decentralized', 'KOR': 'decentralized', 'BRA': 'decentralized', 'VNM': 'decentralized',
+            
+            // Restricted / Banned
+            'EGY': 'restricted', // Egypt
+            'CHN': 'restricted', 'IND': 'restricted', 'RUS': 'restricted', 'TUR': 'restricted', 'THA': 'restricted'
+        };
+        const GEOJSON_URL = 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson';
+
+
+        // --- Scene Setup ---
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x02050e, 0.002);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 3000);
+        // Start focused closer to Africa
+        camera.position.set(100, 50, 300); 
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.rotateSpeed = 0.4;
+        controls.minDistance = 160;
+        controls.maxDistance = 800;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.3;
+
+        // --- Lighting ---
+        scene.add(new THREE.AmbientLight(0x404040, 2));
+        const sunLight = new THREE.DirectionalLight(0xffffff, 3);
+        sunLight.position.set(-200, 200, -100);
+        scene.add(sunLight);
+        // Rim light for edge definition
+        const rimLight = new THREE.PointLight(0x4488ff, 5, 500);
+        rimLight.position.set(200, -100, 300);
+        scene.add(rimLight);
+
+
+        // --- Globe Base ---
+        const globeGroup = new THREE.Group();
+        scene.add(globeGroup);
+
+        const textureLoader = new THREE.TextureLoader();
+        const earthMap = textureLoader.load('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg');
+        const earthBump = textureLoader.load('https://unpkg.com/three-globe/example/img/earth-topology.png');
+        const earthLights = textureLoader.load('https://unpkg.com/three-globe/example/img/earth-night-lights.png');
+        const earthSpecular = textureLoader.load('https://unpkg.com/three-globe/example/img/earth-water.png');
+
+        // Low specular for reduced glare
+        const earthMat = new THREE.MeshPhongMaterial({
+            map: earthMap,
+            bumpMap: earthBump, bumpScale: 1.5,
+            emissiveMap: earthLights, emissive: new THREE.Color(0x222244), emissiveIntensity: 0.8,
+            specularMap: earthSpecular, 
+            specular: new THREE.Color(0x050505), 
+            shininess: 5
+        });
+        
+        const earth = new THREE.Mesh(new THREE.SphereGeometry(GLOBE_RADIUS, 64, 64), earthMat);
+        globeGroup.add(earth);
+
+        // Atmosphere
+        const atmoMat = new THREE.ShaderMaterial({
+            vertexShader: `varying vec3 vNormal; void main() { vNormal = normalize( normalMatrix * normal ); gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }`,
+            fragmentShader: `varying vec3 vNormal; void main() { float intensity = pow( 0.6 - dot( vNormal, vec3( 0.0, 0.0, 1.0 ) ), 4.0 ); gl_FragColor = vec4( 0.1, 0.4, 1.0, 0.9 ) * intensity; }`,
+            blending: THREE.AdditiveBlending, side: THREE.BackSide, transparent: true
+        });
+        scene.add(new THREE.Mesh(new THREE.SphereGeometry(GLOBE_RADIUS + 8, 64, 64), atmoMat));
+
+        // Stars
+        const starsGeo = new THREE.BufferGeometry();
+        const starsPos = [];
+        for (let i=0; i<4000; i++) {
+            const r = 1000 + Math.random()*1000;
+            const theta = Math.random()*Math.PI*2;
+            const phi = Math.acos(2*Math.random()-1);
+            starsPos.push(r*Math.sin(phi)*Math.cos(theta), r*Math.sin(phi)*Math.sin(theta), r*Math.cos(phi));
+        }
+        starsGeo.setAttribute('position', new THREE.Float32BufferAttribute(starsPos, 3));
+        scene.add(new THREE.Points(starsGeo, new THREE.PointsMaterial({color:0x666666, size:1.5})));
+
+
+        // --- Country Borders Implementation ---
+
+        // Groups for toggling
+        const borderGroups = {
+            regulated: new THREE.Group(),
+            crypto: new THREE.Group(),
+            decentralized: new THREE.Group(),
+            restricted: new THREE.Group(),
+            default: new THREE.Group() // For countries not in our list
+        };
+        Object.values(borderGroups).forEach(g => globeGroup.add(g));
+        
+        // Interactive objects list for raycasting, starting with the earth itself for occlusion
+        const interactiveObjects = [earth]; 
+
+        // Helper: Lat/Lon -> Vector3 on sphere surface
+        function latLonToVec3(lat, lon, radius) {
+            const phi = (90 - lat) * (Math.PI / 180);
+            const theta = (lon + 180) * (Math.PI / 180);
+            return new THREE.Vector3(
+                -(radius) * Math.sin(phi) * Math.cos(theta),
+                (radius) * Math.cos(phi),
+                (radius) * Math.sin(phi) * Math.sin(theta)
+            );
+        }
+
+        // Load GeoJSON
+        fetch(GEOJSON_URL).then(res => res.json()).then(data => {
+            document.getElementById('loading').style.display = 'none';
+            
+            data.features.forEach(feature => {
+                const isoCode = feature.properties.ISO_A3;
+                const status = COUNTRY_STATUS[isoCode] || 'default';
+                const colorHex = COLORS[status];
+                const countryName = feature.properties.NAME;
+
+                let polygons = feature.geometry.type === 'Polygon' ? [feature.geometry.coordinates] : feature.geometry.coordinates;
+
+                polygons.forEach(polygon => {
+                    let outerRing = polygon[0]; 
+                    const points = [];
+                    outerRing.forEach(([lon, lat]) => {
+                        points.push(latLonToVec3(lat, lon, GLOBE_RADIUS + 0.5));
+                    });
+
+                    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                    const material = new THREE.LineBasicMaterial({ 
+                        color: colorHex, 
+                        linewidth: 1,
+                        transparent: true,
+                        opacity: 0.6,
+                        toneMapped: false
+                    });
+                    
+                    const borderMesh = new THREE.LineLoop(geometry, material);
+                    borderMesh.userData = { country: countryName, status: status, originalColor: colorHex };
+                    
+                    borderGroups[status].add(borderMesh);
+                    interactiveObjects.push(borderMesh);
+                });
+            });
+        });
+
+
+        // --- Post-Processing (Bloom) ---
+        const composer = new EffectComposer(renderer);
+        composer.addPass(new RenderPass(scene, camera));
+        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.2, 0.8);
+        bloomPass.threshold = 0.1;
+        bloomPass.strength = 2.0;
+        bloomPass.radius = 0.3;
+        composer.addPass(bloomPass);
+
+
+        // --- Interaction ---
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        raycaster.params.Line.threshold = 2; 
+
+        const tooltip = document.getElementById('tooltip');
+        const ttCountry = document.getElementById('tt-country');
+        const ttStatus = document.getElementById('tt-status');
+        
+        let hoveredBorder = null;
+        let targetCameraPos = null;
+
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            tooltip.style.left = e.clientX + 'px';
+            tooltip.style.top = e.clientY + 'px';
+        });
+
+        window.addEventListener('click', () => {
+            if (hoveredBorder) {
+                controls.autoRotate = false;
+                hoveredBorder.geometry.computeBoundingSphere();
+                const center = hoveredBorder.geometry.boundingSphere.center.clone();
+                targetCameraPos = center.normalize().multiplyScalar(300);
+            }
+        });
+
+        document.querySelectorAll('.toggle-item input').forEach(input => {
+            input.addEventListener('change', (e) => {
+                const type = e.target.dataset.type;
+                if (borderGroups[type]) borderGroups[type].visible = e.target.checked;
+            });
+        });
+
+        function resetHover() {
+            if (hoveredBorder) {
+                hoveredBorder.material.color.setHex(hoveredBorder.userData.originalColor);
+                hoveredBorder.material.opacity = 0.6;
+                hoveredBorder = null;
+            }
+            document.body.style.cursor = 'default';
+            tooltip.style.opacity = 0;
+        }
+
+
+        // --- Animation Loop ---
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+            controls.update();
+
+            // --- Raycasting with Occlusion Fix ---
+            raycaster.setFromCamera(mouse, camera);
+            
+            const activeObjects = interactiveObjects.filter(obj => {
+                if (obj === earth) return true;
+                return obj.parent.visible;
+            });
+            
+            const intersects = raycaster.intersectObjects(activeObjects);
+
+            if (intersects.length > 0) {
+                const target = intersects[0].object;
+
+                // If hit earth first, it's occluded.
+                if (target === earth) {
+                    resetHover();
+                } 
+                // Otherwise it's a front-facing border
+                else if (hoveredBorder !== target) {
+                    resetHover(); 
+                    
+                    hoveredBorder = target;
+                    document.body.style.cursor = 'pointer';
+                    
+                    // Highlight
+                    hoveredBorder.material.color.setHex(0xffffff);
+                    hoveredBorder.material.opacity = 1.0;
+
+                    // Update tooltip
+                    ttCountry.textContent = hoveredBorder.userData.country;
+                    const statusStr = hoveredBorder.userData.status;
+                    ttStatus.textContent = statusStr.charAt(0).toUpperCase() + statusStr.slice(1);
+                    ttStatus.style.color = '#' + COLORS[statusStr].toString(16);
+                    tooltip.style.opacity = 1;
+                }
+            } else {
+                resetHover();
+            }
+            // ------------------------------------
+
+            // Smooth camera transition
+            if (targetCameraPos) {
+                camera.position.lerp(targetCameraPos, delta * 4);
+                if (camera.position.distanceTo(targetCameraPos) < 5) targetCameraPos = null;
+            }
+
+            composer.render();
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+
+    </script>
+</body>
+</html>
